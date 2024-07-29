@@ -1,0 +1,73 @@
+apiVersion: v1
+kind: ConfigMap # Добавил ConfigMap
+metadata:
+  name: app-config  # Имя ConfigMap
+data:
+  APP_ENV: production  # Данные в формате ключ: значение
+---
+apiVersion: v1
+kind: Secret # Добавил Secret
+metadata:
+  name: app-secret # Имя Secret
+type: Opaque # Тип Secret 
+data:
+  DATABASE_PASSWORD: cGFzc3dvcmQ= # Данные в формате ключ: значение
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-deployment  # Имя deployment
+  labels:
+    app: app  # Метка, чтобы идентифицировать наше приложение
+spec:
+  replicas: 4 # Колличество реплик подов
+  selector:
+    matchLabels:
+      app: app # Говорим Kubernetes, какие поды принадлежат этому Deployment по метке
+  template:
+    metadata:
+      labels:
+        app: app # Метка для подов из этого deployment
+    spec:
+      containers:
+      - name: app  # Имя контейнера
+        image: app:latest # Образ контейнера
+        env:
+        - name: APP_ENV # Добавление в контейнер переменной из ConfigMap
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: APP_ENV
+        - name: DATABASE_PASSWORD # Добавление в контейнер пароля из Secret
+          valueFrom:
+            secretKeyRef:
+              name: app-secret
+              key: DATABASE_PASSWORD
+        resources:
+          requests:
+            memory: "128Mi"  # Минимальная память
+            cpu: "100m"  # Минимальный CPU (0.1 CPU) после инициализации
+          limits:
+            memory: "128Mi"  # Максимальная память
+            cpu: "1"  # Максимальный CPU для инициализации (1 CPU)
+        ports:
+        - containerPort: 8080 # Открываем порт 
+---
+apiVersion: v1  
+kind: Service  
+metadata:
+  name: app-service  # Имя Service
+spec:
+  selector:
+    app: app  # Service будет направлять трафик на поды с этой меткой
+  type: LoadBalancer # Тип для external service 
+  ports:
+  - protocol: TCP  # Протокол для связи
+    port: 8080  
+    targetPort: 8080  # Порт, на который Service будет направлять трафик внутри подов
+    nodePort: 30000 # Порт для external ip
+
+
+
+# В конце применяем kubectl apply -f app-deployment.yaml
+# Я впервые использую k8s, поэтому мог неверно выполнить задание.  
